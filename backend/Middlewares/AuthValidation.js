@@ -35,9 +35,18 @@ const loginValidation = (req, res, next) => {
     const { error } = schema.validate(req.body);
 
     if (error) {
-        return res.status(400)
-        .json({ message: "Password Must have 6 characters", error });
+    // Check if the error is related to password length
+    const passwordError = error.details.find(detail =>
+      detail.context.key === 'password' && detail.type === 'string.min'
+    );
+
+    if (passwordError) {
+      return res.status(400).json({ message: "Password Must have 6 characters", error });
     }
+
+    // For other errors (like invalid email, missing fields), respond with 403
+    return res.status(403).json({ message: "Email or Password Incorrect", error });
+  }
     next();
 }       
 
