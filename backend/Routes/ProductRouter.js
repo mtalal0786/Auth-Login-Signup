@@ -1,23 +1,16 @@
-const ensureAuthenticated = require('../Middlewares/Auth');
+const multer = require('multer');
 const router = require('express').Router();
+const upload = multer({ dest: 'uploads/' });
+const ensureAuthenticated = require('../Middlewares/Auth');
+const { createProduct, getAllProducts, getSingleProduct, updateProduct, deleteProduct } = require('../Controllers/ProductController');
 
-router.get('/',ensureAuthenticated, (req, res) => {
-    console.log('\n----logged in user details----\n',req.user); 
-    res.status(200)
-    .json([
-        {
-            name: 'Mobile',
-            price: 10000,
-        },
-        {
-            name: 'Laptop',
-            price: 50000,
-        },
-        {
-            name: 'Tablet',
-            price: 30000,  
-        }
-    ]);
-    });
+router.post('/create', ensureAuthenticated, upload.single('image'), createProduct);
+router.get('/getall', ensureAuthenticated, getAllProducts);
+router.get('/get/:id', ensureAuthenticated, getSingleProduct);
+router.put('/update/:id', ensureAuthenticated, upload.single('image'), updateProduct);
+router.delete('/delete/:id', ensureAuthenticated, deleteProduct);
+
 
 module.exports = router;
+
+
