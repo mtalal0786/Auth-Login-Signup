@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect,useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { handleSuccess, handleError } from '../utils';
 import { ToastContainer } from 'react-toastify';
@@ -21,30 +21,42 @@ function Home() {
     image: null,
   });
 
-  useEffect(() => {
-    setLoggedInUser(localStorage.getItem('loggedInUser'));
-    fetchProducts();
+  // Helper function to try fetch with fallback
+  const fetchWithFallback = async (primaryUrl, fallbackUrl, options = {}) => {
+    try {
+      let res = await fetch(primaryUrl, options);
+      if (!res.ok) throw new Error(`Primary API error: ${res.status}`);
+      return res;
+    } catch (err) {
+      console.warn('Primary API failed, trying fallback...', err.message);
+      let res = await fetch(fallbackUrl, options);
+      if (!res.ok) throw new Error(`Fallback API error: ${res.status}`);
+      return res;
+    }
+  };
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      const primaryUrl = 'https://auth-login-signup-api.vercel.app/products/getall';
+      const fallbackUrl = 'http://localhost:8080/products/getall';
+      const headers = {
+        Authorization: localStorage.getItem('token'),
+      };
+
+      const response = await fetchWithFallback(primaryUrl, fallbackUrl, { headers });
+      const result = await response.json();
+
+      setProducts(result.products || []);
+    } catch (err) {
+      handleError(err.message);
+    }
   }, []);
 
-  const fetchProducts = async () => {
-  try {
-    const url = 'http://localhost:8080/products/getall' || 'https://auth-login-signup-api.vercel.app/products/getall';
-    const headers = {
-      headers: {
-        'Authorization': localStorage.getItem('token'),
-      }
-    };
-    const response = await fetch(url, headers);
-    if(!response.ok) throw new Error('Failed to fetch products');
-    const result = await response.json();
-
-    setProducts(result.products || []);
-  } catch (err) {
-    handleError(err.message);
-  }
-};
-
-
+    useEffect(() => {
+    setLoggedInUser(localStorage.getItem('loggedInUser'));
+    fetchProducts();
+  }, [fetchProducts]);
+  
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('loggedInUser');
@@ -74,10 +86,10 @@ function Home() {
   // Handle form field change
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
-    if(name === 'image') {
-      setFormData(prev => ({ ...prev, image: files[0] }));
+    if (name === 'image') {
+      setFormData((prev) => ({ ...prev, image: files[0] }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
@@ -85,40 +97,44 @@ function Home() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation (simple)
-    if(!formData.name || !formData.quantity || !formData.price) {
+    if (!formData.name || !formData.quantity || !formData.price) {
       handleError('Please fill all required fields');
       return;
     }
 
     try {
-      const url = editProduct ? 
-         `http://localhost:8080/products/update/${editProduct._id}` || `https://auth-login-signup-api.vercel.app/products/update/${editProduct._id}`: 
-        'http://localhost:8080/products/create' || 'https://auth-login-signup-api.vercel.app//products/create';
-
+      const token = localStorage.getItem('token');
       const method = editProduct ? 'PUT' : 'POST';
 
-      // Prepare form data for file upload
+      // Use correct URLs
+      const primaryUrl = editProduct
+        ? `https://auth-login-signup-api.vercel.app/products/update/${editProduct._id}`
+        : 'https://auth-login-signup-api.vercel.app/products/create';
+      const fallbackUrl = editProduct
+        ? `http://localhost:8080/products/update/${editProduct._id}`
+        : 'http://localhost:8080/products/create';
+
+      // Prepare form data
       const data = new FormData();
       data.append('name', formData.name);
       data.append('quantity', formData.quantity);
       data.append('price', formData.price);
-      if(formData.image) data.append('image', formData.image);
+      if (formData.image) data.append('image', formData.image);
 
-      const response = await fetch(url, {
+      const response = await fetchWithFallback(primaryUrl, fallbackUrl, {
         method,
         headers: {
-          'Authorization': localStorage.getItem('token')
+          Authorization: token,
+          // Do NOT set 'Content-Type' with FormData; browser sets it automatically
         },
-        body: data
+        body: data,
       });
 
-      if(!response.ok) throw new Error('Failed to save product');
+      if (!response.ok) throw new Error('Failed to save product');
 
       handleSuccess(editProduct ? 'Product updated' : 'Product added');
       setModalOpen(false);
       fetchProducts();
-
     } catch (err) {
       handleError(err.message);
     }
@@ -126,17 +142,22 @@ function Home() {
 
   // Handle delete product
   const handleDelete = async (productId) => {
-    if(!window.confirm('Are you sure you want to delete this product?')) return;
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      const url = ` http://localhost:8080/products/delete/${productId}` || `https://auth-login-signup-api.vercel.app//products/delete/${productId}` ;
-      const response = await fetch(url, {
+      const token = localStorage.getItem('token');
+
+      const primaryUrl = `https://auth-login-signup-api.vercel.app/products/delete/${productId}`;
+      const fallbackUrl = `http://localhost:8080/products/delete/${productId}`;
+
+      const response = await fetchWithFallback(primaryUrl, fallbackUrl, {
         method: 'DELETE',
         headers: {
-          'Authorization': localStorage.getItem('token')
-        }
+          Authorization: token,
+        },
       });
-      if(!response.ok) throw new Error('Failed to delete product');
+
+      if (!response.ok) throw new Error('Failed to delete product');
 
       handleSuccess('Product deleted');
       fetchProducts();
