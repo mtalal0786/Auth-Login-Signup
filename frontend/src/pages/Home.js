@@ -28,7 +28,7 @@ function Home() {
 
   const fetchProducts = async () => {
   try {
-    const url = 'https://auth-login-signup-api.vercel.app/products/getall';
+    const url = 'https://auth-login-signup-api.vercel.app/products/getall' || 'http://localhost:8080/products/getall';
     const headers = {
       headers: {
         'Authorization': localStorage.getItem('token'),
@@ -93,8 +93,8 @@ function Home() {
 
     try {
       const url = editProduct ? 
-        `https://auth-login-signup-api.vercel.app/products/update/${editProduct._id}` : 
-        'https://auth-login-signup-api.vercel.app//products/create';
+        `https://auth-login-signup-api.vercel.app/products/update/${editProduct._id}` || `http://localhost:8080/products/update/${editProduct._id}` : 
+        'https://auth-login-signup-api.vercel.app//products/create' || 'http://localhost:8080/products/create';
 
       const method = editProduct ? 'PUT' : 'POST';
 
@@ -129,7 +129,7 @@ function Home() {
     if(!window.confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      const url = `https://auth-login-signup-api.vercel.app//products/delete/${productId}`;
+      const url = `https://auth-login-signup-api.vercel.app//products/delete/${productId}` || `http://localhost:8080/products/delete/${productId}`;
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
