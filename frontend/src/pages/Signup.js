@@ -31,7 +31,7 @@ function Signup() {
       return handleError('Enter your password')
     }
     try {
-        const url = 'https://auth-login-signup-api.vercel.app/auth/signup';
+        const url = ' http://localhost:8080/auth/signup' || 'https://auth-login-signup-api.vercel.app/auth/signup';
         const response = await fetch(url, {
             method: 'POST',
             headers: {
